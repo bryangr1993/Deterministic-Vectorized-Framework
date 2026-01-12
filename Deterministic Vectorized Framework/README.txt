@@ -2,56 +2,72 @@
 
 This repository contains the source code, datasets, and forensic tools associated with the research paper: **"A Deterministic Vectorized Macro-Micro Framework for Tick-Validated Backtesting of Opening Range Breakout Strategies"**.
 
-This framework implements a high-performance vectorized backtest on EURUSD (16-month period) to evaluate over 338,000 strategy configurations, resolving intra-bar ambiguity via deterministic tick-level validation.
+This framework implements a high-performance vectorized backtest on EURUSD (24-month period) to evaluate over 338,000 strategy configurations. It features a **Validation Gating** mechanism that resolves intra-bar ambiguity via deterministic tick-level validation, achieving a **~60x speedup** versus standard iterative methods.
 
 ---
 
-##  Language & Localization Note (Nota de Idioma)
-**Please Note:** While the documentation in this README is in English, the source code artifacts and dataset column headers preserve their original **Spanish** naming conventions.
+## Language & Localization Note (Nota de Idioma)
+**Please Note:** While this documentation is in English to support Open Science standards, the source code artifacts and dataset column headers preserve their original **Spanish** naming conventions.
 * **Code:** The notebook `Trader_Pro_2.1-LEGEND.ipynb` contains comments and logic descriptions in **Spanish**.
 * **Data:** CSV column headers use Spanish terminology (e.g., `Margen_Utilidad` instead of *Efficiency Margin*, `Ticks_totales` instead of *Net Ticks*).
-* **Functionality:** Despite the language difference, the code is fully functional, vectorized, and deterministic. A **Data Dictionary** is provided below to assist in interpreting the results.
+* **Functionality:** Despite the language difference, the code is fully functional and the logic is mathematically universal. A **Data Dictionary** is provided below.
 
 ---
 
-##  Repository Structure
+## Experimental Protocol (The "Clean Split")
+
+To ensure rigorous validation and prevent data leakage, this study enforces a strict three-phase chronological protocol spanning **December 2023 to November 2025 (~62.5M ticks)**.
+
+| Phase | Period | Duration | Role |
+| :--- | :--- | :--- | :--- |
+| **I. In-Sample** | Dec 2023 – Nov 2024 | 12 Months | **Optimization:** Exhaustive Grid Search (338,688 configs). |
+| **II. Validation** | Dec 2024 – Mar 2025 | 4 Months | **Calibration:** Selection of Top 17 candidates & freezing of Structural Orientation ($\theta \in \{1, -1\}$). |
+| **III. Pristine Test** | Apr 2025 – Nov 2025 | 8 Months | **Blind Evaluation:** Pure out-of-sample test with all parameters frozen. |
+
+---
+
+## Repository Structure
 
 ### 1. Code (`/code`)
 * **`Trader_Pro_2.1-LEGEND.ipynb`** (Main Engine):
-    * The core vectorized backtesting engine. It performs the exhaustive Grid Search, applies the Macro (OHLC) masks, and manages the initial data processing.
+    * The core vectorized backtesting engine. It performs the exhaustive Grid Search (Phase I), applies the Macro (OHLC) masks, and manages the initial data processing.
 * **`Forensic_Audit_Tool.ipynb`**:
-    * The diagnostic validation tool. It performs the stress tests ("Kamikaze"), the noise analysis ("Bottom-500"), and the final tick-by-tick certification of the selected strategies.
+    * The diagnostic validation tool. It performs:
+        * **Speed Benchmark:** Comparing Vectorized vs. Iterative performance.
+        * **Ambiguity Audit:** Detecting divergence in "Bottom-500" vs. Top strategies.
+        * **Pristine Test:** Executing the Bidirectional Portfolio on future data.
 
 ### 2. Datasets (`/data`)
+* **`todas_estrategias.csv`** (Phase I Output):
+    * The massive dataset containing metrics for all 338,688 configurations during the In-Sample period.
+* **`Top_17_Pareto.csv`** (Phase II Selection):
+    * The parameters of the final 17 selected strategies, including their calibrated orientation ($\theta$).
+* **`Validation_Holdout_Results.xlsx`**:
+    * Performance metrics during the Calibration Phase (Dec 24 - Mar 25).
+* **`Top_50_Volume.csv`** & **`bottom 500.csv`**:
+    * Subsets used for the Forensic Audit (Positive/Negative controls).
 
-#### A. Optimization Phase (In-Sample)
-* **`todas_estrategias.csv`** (The Massive Dataset):
-    * Contains the exhaustive evaluation of all **338,688 strategy configurations** over the **Training/In-Sample Period** (Dec 2023 – Nov 2024).
-    * Used to map the fitness landscape and select candidates.
-    * *Important:* This file represents the optimization phase; strictly no future data (Dec 2024+) is included here to prevent look-ahead bias.
+*Note: Due to data licensing restrictions, raw tick data (`.parquet` / `.csv` ticks) are not redistributed. The repository provides the schema and loaders to reproduce experiments using an equivalent EURUSD tick source.*
 
-#### B. Validation Phase (Out-of-Sample)
-* **`Test_17_EURUSD.xlsx`**:
-    * Performance results of the selected **Top 17 strategies** over the **Blind Holdout/Out-of-Sample Period** (Dec 2024 – Mar 2025).
-    * Used to verify that the selected strategies maintained profitability in unseen market data.
+---
 
-#### C. Forensic Audit Subsets
-* **`Top_50_Volume.csv`**:
-    * The "Heavy Lifters". Contains the 50 strategies with the highest Net Ticks. Used to verify structural robustness (**0.00% Divergence**).
-* **`top 500 efficiency margin.csv`**:
-    * The "Naive Baseline". The top 500 strategies selected solely by efficiency. Used as a control group to demonstrate the risks of overfitting (referenced as the group with **non-zero divergence**).
-* **`bottom 500.csv`**:
-    * The "Negative Control". The 500 worst-performing strategies. Used to establish the baseline for market noise and ambiguity (**1.40% Divergence**).
+## Key Results (Pristine Test Phase)
 
-#### D. Final Solution
-* **`Top_17_Pareto.csv`**:
-    * The parameters of the final proposed portfolio (Pareto Frontier + 30% Consistency Filter).
+### 1. Computational Efficiency
+A controlled benchmark on the 8-month pristine test set (20M+ ticks) demonstrated that the Vectorized Framework is significantly faster than standard iterative approaches:
+* **Iterative Loop:** ~25.0 seconds.
+* **Vectorized Framework:** ~0.40 seconds.
+* **Speedup Factor:** **57x – 65x**.
+
+### 2. Structural Persistence (Bidirectional Portfolio)
+On the blind test set (Apr–Nov 2025), the selected portfolio demonstrated robust structural behavior:
+* **Directional Persistence:** **76.5%** (13 of 17 strategies maintained their In-Sample bias).
+* **Adjusted Return:** By applying the frozen orientation ($\theta$), the portfolio generated **+7,405 Net Ticks** (vs. -13,715 if orientation were ignored).
+* **Divergence:** **0.00%** ambiguity rate observed throughout the test period.
 
 ---
 
 ## Data Dictionary (Spanish to English Mapping)
-
-To interpret the CSV files, please refer to this mapping table:
 
 | Spanish Column Header | English Equivalent | Description |
 | :--- | :--- | :--- |
@@ -64,30 +80,17 @@ To interpret the CSV files, please refer to this mapping table:
 | `hora_apertura` | **Opening Time** | The anchor hour for the session (UTC-5). |
 | `v_rango` | **Range Duration** | Duration of the opening range (in 5-min bars). |
 | `v_espera` | **Wait Window** | Duration of the valid breakout window (in 5-min bars). |
-| `fecha_inicio` | **Start Date** | Start of the evaluation period. |
-| `fecha_fin` | **End Date** | End of the evaluation period. |
 
 ---
 
-## How to Reproduce the Findings
+## How to Reproduce
 
-1.  **Environment:** Ensure you have Python 3.10+ installed with `pandas`, `numpy`, `tqdm`, and `joblib`.
+1.  **Environment:** Ensure Python 3.10+ is installed with `pandas`, `numpy`, `tqdm`, and `joblib`.
 2.  **Data Setup:**
-    * If `todas_estrategias.csv` is compressed (.zip), extract it first.
-    * Place all CSV files in a folder named `data` (or adjust the path in the notebook).
-3.  **Running the Audit:**
+    * Place your tick data (CSV or Parquet) in the expected folder structure (see `Forensic_Audit_Tool.ipynb` for schema details).
+    * If `todas_estrategias.csv` is compressed, unzip it first.
+3.  **Run the Benchmark:**
     * Open `Forensic_Audit_Tool.ipynb`.
-    * Load `Top_50_Volume.csv` or `Top_17_Pareto.csv`.
-    * Execute the cells to verify the **0.00% Divergence Rate**.
-4.  **Running the Stress Test:**
-    * In the Audit tool, run the "Kamikaze" function (TP=3 ticks) to confirm that the detector correctly flags ambiguity when present.
-
----
-
-##  Methodology Summary
-* **Total Period:** Dec 1, 2023 – Mar 31, 2025 (16 Months).
-* **Protocol:**
-    * *In-Sample (Optimization):* Dec 2023 – Nov 2024 (Used for `todas_estrategias.csv`).
-    * *Out-of-Sample (Validation):* Dec 2024 – Mar 2025 (Used for `Test_17_EURUSD.xlsx`).
-* **Execution:** Parallelized grid search on 9 workers.
-* **Validation:** 100% Tick-level replay for ambiguity resolution on gated windows.
+    * Run the "Speed Benchmark" cell to verify the ~60x efficiency gain.
+4.  **Run the Blind Test:**
+    * Execute the "Portfolio Validation" function to reproduce the Adjusted PnL and Persistence metrics on the 2025 data.
